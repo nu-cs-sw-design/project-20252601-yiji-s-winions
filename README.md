@@ -1,7 +1,7 @@
 # Project: NAME
 
 ## Contributors
-PAUL KIM, JEONGWOO CHEON
+Jeongwoo Cheon, Paul Kim
 
 ## Dependencies
 - Java JDK 11
