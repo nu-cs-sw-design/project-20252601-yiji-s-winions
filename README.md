@@ -1,4 +1,4 @@
-# Project: NAME
+# Project: Financial Tracker
 
 ## Contributors
 Jeongwoo Cheon, Paul Kim
