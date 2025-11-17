@@ -1,10 +1,10 @@
 # Project: NAME
 
 ## Contributors
-NAME, NAME, NAME
+PAUL KIM, JEONGWOO CHEON
 
 ## Dependencies
-- LANGUAGE AND VERSION
+- Java JDK 11
 - EXTERNAL LIBRARIES
 - ETC
 
