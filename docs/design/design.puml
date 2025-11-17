@@ -1,2 +1,19 @@
 @startuml
+
+package presentation {
+
+}
+
+package domain {
+
+}
+
+package datasource {
+
+}
+
+class main {
+
+}
+
 @enduml
