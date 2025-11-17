@@ -1,7 +1,7 @@
 # Project: NAME
 
 ## Contributors
-NAME, NAME, NAME
+Jeongwoo Cheon, Paul Kim
 
 ## Dependencies
 - LANGUAGE AND VERSION
