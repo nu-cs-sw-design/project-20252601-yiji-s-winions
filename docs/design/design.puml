@@ -83,6 +83,20 @@ package domain {
     class InvestmentAccount {
         ' Adds investment-specific features, e.g., mock portfolio data
     }
+
+    class AccountHistory {
+        - accountId: String
+        + transactions: List<Transaction>
+        + getFilteredHistory(startDate, endDate, type): List<Transaction>
+        + calculateRunningBalance(): List<BalanceSnapshot>
+        + getSummary(): Map<String, double>
+    }
+
+    class BalanceSnapshot {
+        + date: Date
+        + balance: double
+    }
+
     class Dashboard {
         + currentBalances: Map<String, double>
         + recentTransactions: List<Transaction>
@@ -94,32 +108,37 @@ package domain {
     BasicAccount ..|> Account
     AccountDecorator ..|> Account
 
+    ' Relationship: Account contains/uses its history logic
+    Account <.. AccountHistory
+
+    AccountHistory "1" --> "*" Transaction
+
 }
 
 package datasource {
     interface AccountRepository {
-            + findById(id): Account
-            + save(account): void
-            + delete(id): void
-            + findTransactionsByAccountId(id): List<Transaction>
-        }
+        + findById(id): Account
+        + save(account): void
+        + delete(id): void
+        + findTransactionsByAccountId(id): List<Transaction>
+    }
 
-        interface UserRepository {
-            + findByUsername(username): User
-            + save(user): void
-            + delete(id): void
-        }
+    interface UserRepository {
+        + findByUsername(username): User
+        + save(user): void
+        + delete(id): void
+    }
 
-        class ConcreteAccountRepository {
-            ' Uses a specific database technology (e.g., SQL, Firebase)
-        }
+    class ConcreteAccountRepository {
+        ' Uses a specific database technology (e.g., SQL, Firebase)
+    }
 
-        class ConcreteUserRepository {
-            ' Handles user login and registration persistence (e.g., AWS Cognito, Firebase Auth)
-        }
+    class ConcreteUserRepository {
+        ' Handles user login and registration persistence (e.g., AWS Cognito, Firebase Auth)
+    }
 
-        ConcreteUserRepository ..|> UserRepository
-        ConcreteAccountRepository ..|> AccountRepository
+    ConcreteUserRepository ..|> UserRepository
+    ConcreteAccountRepository ..|> AccountRepository
 }
 
 class main {
