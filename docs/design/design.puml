@@ -1,19 +1,146 @@
 @startuml
 
 package presentation {
+    class AuthenticationService {
+        + login(username, password): User
+        + register(details): User
+        + forgotPassword(username): void
+    }
 
+    class AccountController {
+        ' Handles calls related to accounts
+        + createAccount(userId, type): void
+        + internalTransfer(source, target, amount): void
+        + externalTransfer(source, target, amount): void
+        + deleteAccount(accountId): void
+    }
+
+    ' New View Classes
+    class LoginView
+    class RegistrationView
+    class DashboardView
+    class TransferView
+    class AccountHistoryView
+
+    ' Relationships: Views interact with the controllers/services
+    LoginView ..> AuthenticationService : initiates login
+    RegistrationView ..> AuthenticationService : initiates registration
+    DashboardView ..> AccountController : requests balance/transactions
+    TransferView ..> AccountController : initiates transfer
+    AccountHistoryView ..> AccountController : requests history
 }
 
 package domain {
 
+    abstract class User {
+        + userId: String
+        + username: String
+        + authenticate(credentials): Boolean
+        + register(details): User
+        + changePassword(newPass): void
+        + viewDashboard(): Dashboard
+    }
+
+    interface Account {
+        + getAccountId(): String
+        + getBalance(): double
+        + deposit(amount): void
+        + withdraw(amount): void
+        + transfer(targetAccount, amount): void
+        + viewTransactions(): List<Transaction>
+    }
+
+    class Transaction {
+        + transactionId: String
+        + type: TransactionType
+        + amount: double
+        + date: Date
+        + sourceAccountId: String
+        + targetAccountId: String
+    }
+
+    ' Account Hierarchy (Decorator Pattern for flexibility and future extensions)
+    abstract class AccountDecorator {
+        # decoratedAccount: Account
+        + AccountDecorator(account)
+    }
+
+    class BasicAccount {
+        - balance: double
+        - accountType: String
+        + deposit(amount): void
+        + withdraw(amount): void
+        + transfer(targetAccount, amount): void
+    }
+    class CheckingAccount {
+        ' Adds checking-specific features, e.g., overdraft limits
+    }
+
+    class SavingsAccount {
+        ' Adds savings-specific features, e.g., interest calculation
+    }
+
+    class InvestmentAccount {
+        ' Adds investment-specific features, e.g., mock portfolio data
+    }
+    class Dashboard {
+        + currentBalances: Map<String, double>
+        + recentTransactions: List<Transaction>
+    }
+    enum TransactionType {
+        DEPOSIT, WITHDRAWAL, INTERNAL_TRANSFER, EXTERNAL_TRANSFER
+    }
+
+    BasicAccount ..|> Account
+    AccountDecorator ..|> Account
+
 }
 
 package datasource {
+    interface AccountRepository {
+            + findById(id): Account
+            + save(account): void
+            + delete(id): void
+            + findTransactionsByAccountId(id): List<Transaction>
+        }
 
+        interface UserRepository {
+            + findByUsername(username): User
+            + save(user): void
+            + delete(id): void
+        }
+
+        class ConcreteAccountRepository {
+            ' Uses a specific database technology (e.g., SQL, Firebase)
+        }
+
+        class ConcreteUserRepository {
+            ' Handles user login and registration persistence (e.g., AWS Cognito, Firebase Auth)
+        }
+
+        ConcreteUserRepository ..|> UserRepository
+        ConcreteAccountRepository ..|> AccountRepository
 }
 
 class main {
-
+    + main(args): void
 }
+
+' Presentation depends on Domain (Uses its Models and Services)
+AuthenticationService ..> User : uses
+AccountController ..> Account : uses
+AccountController ..> Transaction : uses
+AccountController ..> Dashboard : uses
+
+' Domain depends on Datasource (Uses Repositories to persist data)
+User ..> UserRepository : aggregates/uses
+BasicAccount ..> AccountRepository : aggregates/uses
+AccountDecorator <|-- CheckingAccount
+AccountDecorator <|-- SavingsAccount
+AccountDecorator <|-- InvestmentAccount
+
+' Main initializes the system
+main ..> AuthenticationService : initializes
+main ..> AccountController : initializes
 
 @enduml
