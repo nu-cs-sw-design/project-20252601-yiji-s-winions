@@ -6,9 +6,9 @@ public class User {
     private final String userId;
     private final String username;
     private String passwordHash;
-    private final ConcreteUserRepository userRepository; // Direct dependency on concrete repo
+    private final UserRepository userRepository; // Direct dependency on concrete repo
 
-    public User(String username, String passwordHash, ConcreteUserRepository userRepository) {
+    public User(String username, String passwordHash, UserRepository userRepository) {
         this.userId = UUID.randomUUID().toString();
         this.username = username;
         this.passwordHash = passwordHash;
