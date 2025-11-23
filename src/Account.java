@@ -1,100 +1,65 @@
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
-// The Account class is responsible for transaction logic and maintaining its own history/state.
+// This class replaces the 'Account' interface AND the 'BasicAccount' concrete class
 public class Account {
-
     private final String accountId;
-    private final String ownerId;
-    private final String accountType;
-    private double balance;
+    protected double balance;
+    protected String accountType = "Basic";
 
-    // Internal class/Record for storing transaction details
+    // Direct dependency on concrete repository
+    protected final AccountRepository accountRepository;
 
-    // Account history list (acts as the persistence/Datasource for Transactions)
-    private final List<Transaction> history;
-
-    // --- CONSTRUCTOR ---
-    public Account(String ownerId, String accountType, double initialBalance) {
+    public Account(double initialBalance, AccountRepository repo) {
         this.accountId = UUID.randomUUID().toString();
-        this.ownerId = ownerId;
-        this.accountType = accountType;
-        this.balance = 0.0;
-        this.history = new ArrayList<>();
-
-        if (initialBalance > 0) {
-            deposit(initialBalance); // Log initial deposit
-        }
+        this.balance = initialBalance;
+        this.accountRepository = repo;
     }
 
-    // --- DOMAIN LOGIC: Transactions ---
+    public String getAccountId() { return accountId; }
+    public double getBalance() { return balance; }
+    public String getAccountType() { return accountType; }
 
+    // Core business logic methods (not abstract anymore)
     public void deposit(double amount) {
         if (amount <= 0) throw new IllegalArgumentException("Deposit amount must be positive.");
         this.balance += amount;
-        logTransaction("DEPOSIT", amount, null);
+        Transaction tx = new Transaction(TransactionType.DEPOSIT, amount, this.accountId, null);
+        accountRepository.saveTransaction(tx);
+        accountRepository.save(this);
     }
 
-    public boolean withdraw(double amount) {
+    public void withdraw(double amount) {
         if (amount <= 0) throw new IllegalArgumentException("Withdrawal amount must be positive.");
-        if (this.balance < amount) {
-            System.err.println("Withdrawal failed: Insufficient funds in " + accountId);
-            return false;
-        }
+        if (this.balance < amount) throw new IllegalStateException("Insufficient funds.");
         this.balance -= amount;
-        logTransaction("WITHDRAWAL", amount, null);
-        return true;
+        Transaction tx = new Transaction(TransactionType.WITHDRAWAL, amount, this.accountId, null);
+        accountRepository.saveTransaction(tx);
+        accountRepository.save(this);
     }
 
-    // Transfers require collaboration between two Account objects.
-    public boolean internalTransfer(Account targetAccount, double amount) {
-        if (this.withdraw(amount)) {
-            // Log the transfer FROM this account before depositing
-            logTransaction("TRANSFER_OUT", amount, targetAccount.getAccountId());
+    public void transfer(Account targetAccount, double amount) {
+        if (amount <= 0) throw new IllegalArgumentException("Transfer amount must be positive.");
 
-            // Deposit to the target account
-            targetAccount.deposit(amount);
-            // Log the transfer INTO the target account
-            targetAccount.logTransaction("TRANSFER_IN", amount, this.accountId);
+        // Use the withdrawal logic of this account
+        this.withdraw(amount);
 
-            System.out.println("Transfer successful: " + amount + " from " + this.accountId + " to " + targetAccount.accountId);
-            return true;
-        }
-        return false;
-    }
+        // Use the deposit logic of the target account
+        targetAccount.deposit(amount);
 
-    // --- DOMAIN LOGIC: History Management ---
-
-    private void logTransaction(String type, double amount, String targetId) {
+        // Save transfer transaction (usually done in the service layer, but here for completeness)
         Transaction tx = new Transaction(
-                UUID.randomUUID().toString(),
-                LocalDateTime.now(),
-                type,
+                TransactionType.INTERNAL_TRANSFER,
                 amount,
-                targetId
+                this.accountId,
+                targetAccount.getAccountId()
         );
-        this.history.add(tx);
-        // In a real system, this is where you'd write to a database table.
+        accountRepository.saveTransaction(tx);
+        accountRepository.save(this);
     }
 
-    public List<String> viewPastTransactions() {
-        // Returns a string representation of the history for easy viewing
-        return history.stream()
-                .map(tx -> String.format("[%s] %s: %.2f (Target: %s)",
-                        tx.timestamp.toLocalTime(),
-                        tx.type,
-                        tx.amount,
-                        tx.targetId != null ? tx.targetId : "N/A"))
-                .collect(Collectors.toList());
+    public List<Transaction> viewTransactions() {
+        return accountRepository.findTransactionsByAccountId(accountId);
     }
-
-    // --- GETTERS ---
-    public String getAccountId() { return accountId; }
-    public String getAccountType() { return accountType; }
-    public double getBalance() { return balance; }
 }
