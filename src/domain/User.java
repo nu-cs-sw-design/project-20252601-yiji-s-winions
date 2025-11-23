@@ -1,6 +1,6 @@
 package domain;
 
-
+import datasource.UserRepository;
 import java.util.UUID;
 
 // Replaces the abstract class structure by making it concrete
