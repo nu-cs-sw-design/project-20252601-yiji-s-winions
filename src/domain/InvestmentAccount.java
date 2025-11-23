@@ -1,15 +1,17 @@
 package domain;
 
+import datasource.AccountRepository;
 import java.util.HashMap;
 import java.util.Map;
 
-public class InvestmentAccount extends AccountDecorator {
+public class InvestmentAccount extends Account {
     // Mock portfolio data: security name -> number of shares
     private final Map<String, Integer> portfolio = new HashMap<>();
     private final double managementFeeRate = 0.005; // 0.5%
 
-    public InvestmentAccount(Account account) {
-        super(account);
+    // Must call the super constructor
+    public InvestmentAccount(double initialBalance, AccountRepository repo) {
+        super(initialBalance, repo);
         this.accountType = "Investment";
     }
 
@@ -21,32 +23,34 @@ public class InvestmentAccount extends AccountDecorator {
      */
     public void buySecurity(String ticker, int shares, double pricePerShare) {
         double cost = shares * pricePerShare;
-        if (decoratedAccount.getBalance() < cost) {
+        if (this.balance < cost) {
             throw new IllegalStateException("Insufficient funds to buy securities.");
         }
 
-        // 1. Delegate withdrawal from the decorated account
-        decoratedAccount.withdraw(cost);
+        // Use the base Account class's withdrawal method
+        super.withdraw(cost);
 
-        // 2. Update mock portfolio
+        // Update mock portfolio
         portfolio.put(ticker, portfolio.getOrDefault(ticker, 0) + shares);
         System.out.printf("INFO: Purchased %d shares of %s for $%.2f.%n", shares, ticker, cost);
     }
 
     /**
-     * Adds an Investment-specific method to simulate calculating portfolio value and applying fees.
+     * Adds an Investment-specific method to simulate calculating and applying management fees.
      */
     public void applyQuarterlyMaintenance() {
         // 1. Calculate management fee based on current balance
-        double managementFee = decoratedAccount.getBalance() * managementFeeRate;
+        double managementFee = this.balance * managementFeeRate;
 
-        // 2. Delegate withdrawal for the fee
-        decoratedAccount.withdraw(managementFee);
-
-        System.out.printf("INFO: Applied management fee of $%.2f to Investment Account %s.%n",
-                managementFee, decoratedAccount.getAccountId());
-
-        // Note: In a real system, methods to get mock portfolio value would also be here.
+        // 2. Use the base Account class's withdrawal method
+        try {
+            super.withdraw(managementFee);
+            System.out.printf("INFO: Applied management fee of $%.2f to Investment Account %s.%n",
+                    managementFee, getAccountId());
+        } catch (IllegalStateException e) {
+            // Handle case where fee cannot be withdrawn
+            System.err.println("WARNING: Cannot apply management fee. " + e.getMessage());
+        }
     }
 
     /**
