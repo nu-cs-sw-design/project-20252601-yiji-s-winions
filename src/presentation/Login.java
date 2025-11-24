@@ -77,7 +77,6 @@ public class Login extends JPanel {
 
     private void moveToDashboard() {
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        Rectangle oldBounds = frame.getBounds();
 
         new javax.swing.Timer(1000, e -> {
             frame.dispose();
@@ -85,12 +84,16 @@ public class Login extends JPanel {
             JFrame dashboardFrame = new JFrame("Dashboard");
             dashboardFrame.add(new Dashboard());
             dashboardFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            dashboardFrame.setBounds(oldBounds);
+
+            dashboardFrame.setSize(800, 800);
+            dashboardFrame.setLocationRelativeTo(null);
+
             dashboardFrame.setVisible(true);
 
             ((javax.swing.Timer) e.getSource()).stop();
         }).start();
     }
+
 
     private void handleLogin() {
         boolean authenticated = true; // TODO: check if backend found account
