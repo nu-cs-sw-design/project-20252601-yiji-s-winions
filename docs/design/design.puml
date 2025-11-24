@@ -1,11 +1,7 @@
 @startuml
 
 package presentation {
-    class AuthenticationService {
-        + login(username, password): User
-        + register(details): User
-        + forgotPassword(username): void
-    }
+
 
     class AccountController {
         ' Handles calls related to accounts
@@ -23,14 +19,19 @@ package presentation {
     class AccountHistoryView
 
     ' Relationships: Views interact with the controllers/services
-    LoginView ..> AuthenticationService : initiates login
-    RegistrationView ..> AuthenticationService : initiates registration
+
     DashboardView ..> AccountController : requests balance/transactions
     TransferView ..> AccountController : initiates transfer
     AccountHistoryView ..> AccountController : requests history
 }
 
 package domain {
+
+    class AuthService {
+        + login(username, password): User
+        + register(details): User
+        + forgotPassword(username): void
+    }
 
     abstract class User {
         + userId: String
@@ -146,10 +147,13 @@ class main {
 }
 
 ' Presentation depends on Domain (Uses its Models and Services)
-AuthenticationService ..> User : uses
+AuthService ..> User : uses
 AccountController ..> Account : uses
 AccountController ..> Transaction : uses
 AccountController ..> Dashboard : uses
+
+LoginView ..> AuthService : initiates login
+RegistrationView ..> AuthService : initiates registration
 
 ' Domain depends on Datasource (Uses Repositories to persist data)
 User ..> UserRepository : aggregates/uses
@@ -159,7 +163,7 @@ AccountDecorator <|-- SavingsAccount
 AccountDecorator <|-- InvestmentAccount
 
 ' Main initializes the system
-main ..> AuthenticationService : initializes
+main ..> AuthService : initializes
 main ..> AccountController : initializes
 
 @enduml

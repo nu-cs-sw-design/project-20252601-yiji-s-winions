@@ -4,32 +4,51 @@ import datasource.AccountRepository;
 import java.util.List;
 import java.util.UUID;
 
-// This class replaces the 'Account' interface AND the 'BasicAccount' concrete class
 public class Account {
     private final String accountId;
+    private final String userId; // <-- NEW: Field added to link to User
     protected double balance;
     protected String accountType = "Basic";
-
-    // Direct dependency on concrete repository
     protected final AccountRepository accountRepository;
 
-    public Account(double initialBalance, AccountRepository repo) {
+    // Constructor 1: For NEW account creation
+    public Account(String userId, double initialBalance, AccountRepository repo) {
         this.accountId = UUID.randomUUID().toString();
+        this.userId = userId;
         this.balance = initialBalance;
         this.accountRepository = repo;
     }
 
+    // Constructor 2: For LOADING from CSV
+    public Account(String accountId, String userId, String accountType, double initialBalance, AccountRepository repo) {
+        this.accountId = accountId;
+        this.userId = userId;
+        this.accountType = accountType;
+        this.balance = initialBalance;
+        this.accountRepository = repo;
+    }
+
+    // Getters
     public String getAccountId() { return accountId; }
+    public String getUserId() { return userId; } // <-- NEW: Required by AccountRepository.findByUserId()
     public double getBalance() { return balance; }
     public String getAccountType() { return accountType; }
 
-    // Core business logic methods (not abstract anymore)
+    /**
+     * Serializes the Account object into a CSV line format.
+     */
+    public String toCsvString() {
+        return String.format("%s,%s,%s,%.2f",
+                this.accountId, this.userId, this.accountType, this.balance);
+    }
+
+    // Core business logic methods (deposit, withdraw, transfer, viewTransactions remain as before...)
     public void deposit(double amount) {
         if (amount <= 0) throw new IllegalArgumentException("Deposit amount must be positive.");
         this.balance += amount;
         Transaction tx = new Transaction(TransactionType.DEPOSIT, amount, this.accountId, null);
         accountRepository.saveTransaction(tx);
-        accountRepository.save(this);
+        accountRepository.save(this); // Saves to CSV
     }
 
     public void withdraw(double amount) {
@@ -38,19 +57,16 @@ public class Account {
         this.balance -= amount;
         Transaction tx = new Transaction(TransactionType.WITHDRAWAL, amount, this.accountId, null);
         accountRepository.saveTransaction(tx);
-        accountRepository.save(this);
+        accountRepository.save(this); // Saves to CSV
     }
 
     public void transfer(Account targetAccount, double amount) {
         if (amount <= 0) throw new IllegalArgumentException("Transfer amount must be positive.");
 
-        // Use the withdrawal logic of this account
         this.withdraw(amount);
-
-        // Use the deposit logic of the target account
         targetAccount.deposit(amount);
 
-        // Save transfer transaction (usually done in the service layer, but here for completeness)
+        // Save transfer transaction
         Transaction tx = new Transaction(
                 TransactionType.INTERNAL_TRANSFER,
                 amount,

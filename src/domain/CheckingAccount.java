@@ -2,23 +2,28 @@ package domain;
 
 import datasource.AccountRepository;
 
-// Directly inherits from the base Account
 public class CheckingAccount extends Account {
     private final double overdraftLimit = 500.00;
 
-    // Must call the super constructor
-    public CheckingAccount(double initialBalance, AccountRepository repo) {
-        super(initialBalance, repo);
+    // Constructor 1: For NEW Account creation (Generates ID)
+    public CheckingAccount(String userId, double initialBalance, AccountRepository repo) {
+        super(userId, initialBalance, repo);
         this.accountType = "Checking";
+    }
+
+    // Constructor 2: For LOADING from CSV (Accepts persistent ID)
+    public CheckingAccount(String accountId, String userId, double initialBalance, AccountRepository repo) {
+        // Calls the base Account loading constructor with the explicit type string
+        super(accountId, userId, "Checking", initialBalance, repo);
     }
 
     @Override
     public void withdraw(double amount) {
-        // Logic specific to checking is now directly inside the class
         if (this.balance + overdraftLimit >= amount) {
-            this.balance -= amount; // Directly manipulate base balance
-            // Transaction logging and persistence logic would be here or delegated
-            // ... (code omitted for brevity)
+            super.withdraw(amount);
+            if (this.balance < 0) {
+                System.out.println("ALERT: Account is in overdraft!");
+            }
         } else {
             throw new IllegalStateException("Withdrawal exceeds overdraft limit.");
         }

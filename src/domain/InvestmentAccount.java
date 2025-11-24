@@ -5,58 +5,41 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class InvestmentAccount extends Account {
-    // Mock portfolio data: security name -> number of shares
     private final Map<String, Integer> portfolio = new HashMap<>();
-    private final double managementFeeRate = 0.005; // 0.5%
+    private final double managementFeeRate = 0.005;
 
-    // Must call the super constructor
-    public InvestmentAccount(double initialBalance, AccountRepository repo) {
-        super(initialBalance, repo);
+    // Constructor 1: For NEW Account creation
+    public InvestmentAccount(String userId, double initialBalance, AccountRepository repo) {
+        super(userId, initialBalance, repo);
         this.accountType = "Investment";
     }
 
-    @Override
-    public String getAccountType() { return accountType; }
+    // Constructor 2: For LOADING from CSV (Accepts persistent ID)
+    public InvestmentAccount(String accountId, String userId, double initialBalance, AccountRepository repo) {
+        // Calls the base Account loading constructor with the explicit type string
+        super(accountId, userId, "Investment", initialBalance, repo);
+        // Portfolio state would ideally be loaded from a separate data source here.
+    }
 
-    /**
-     * Adds an Investment-specific method to simulate buying securities.
-     */
     public void buySecurity(String ticker, int shares, double pricePerShare) {
         double cost = shares * pricePerShare;
         if (this.balance < cost) {
             throw new IllegalStateException("Insufficient funds to buy securities.");
         }
 
-        // Use the base Account class's withdrawal method
         super.withdraw(cost);
-
-        // Update mock portfolio
         portfolio.put(ticker, portfolio.getOrDefault(ticker, 0) + shares);
         System.out.printf("INFO: Purchased %d shares of %s for $%.2f.%n", shares, ticker, cost);
     }
 
-    /**
-     * Adds an Investment-specific method to simulate calculating and applying management fees.
-     */
     public void applyQuarterlyMaintenance() {
-        // 1. Calculate management fee based on current balance
         double managementFee = this.balance * managementFeeRate;
 
-        // 2. Use the base Account class's withdrawal method
         try {
             super.withdraw(managementFee);
-            System.out.printf("INFO: Applied management fee of $%.2f to Investment Account %s.%n",
-                    managementFee, getAccountId());
+            System.out.printf("INFO: Applied management fee of $%.2f to Investment Account %s.%n", managementFee, getAccountId());
         } catch (IllegalStateException e) {
-            // Handle case where fee cannot be withdrawn
             System.err.println("WARNING: Cannot apply management fee. " + e.getMessage());
         }
-    }
-
-    /**
-     * Returns a string representation of the mock portfolio.
-     */
-    public String viewPortfolio() {
-        return "Portfolio: " + portfolio.toString();
     }
 }
