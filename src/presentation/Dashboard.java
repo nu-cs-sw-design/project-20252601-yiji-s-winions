@@ -8,7 +8,7 @@ public class Dashboard extends JPanel {
     private static final int PANEL_HEIGHT = 120;
     private final JPanel contentPanel;
 
-    public Dashboard() {
+    public Dashboard(String email) {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
@@ -47,8 +47,71 @@ public class Dashboard extends JPanel {
 
         add(scrollPane, BorderLayout.CENTER);
 
-        createBtn.addActionListener(e -> addSectionPanel(createSampleAccountPanel("Checking Account", "$" + 0)));
+        createBtn.addActionListener(e -> handleCreate());
         logoutBtn.addActionListener(e -> moveToLogin());
+    }
+
+    private void handleCreate() {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
+                "Create New Account", true);
+        dialog.setLayout(new GridBagLayout());
+        dialog.setSize(400, 220);
+        dialog.setLocationRelativeTo(this);
+        dialog.setResizable(false);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel typeLbl = new JLabel("Account Type:");
+        String[] options = {"Checking", "Savings", "Investment"};
+        JComboBox<String> typeDropdown = new JComboBox<>(options);
+
+        JLabel nicknameLbl = new JLabel("Account Nickname:");
+        JTextField nicknameField = new JTextField(20);
+
+        JButton createBtn = new JButton("Create");
+        JButton cancelBtn = new JButton("Cancel");
+
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnPanel.add(createBtn);
+        btnPanel.add(cancelBtn);
+
+        gbc.gridx = 0; gbc.gridy = 0;
+        dialog.add(typeLbl, gbc);
+
+        gbc.gridx = 1;
+        dialog.add(typeDropdown, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 1;
+        dialog.add(nicknameLbl, gbc);
+
+        gbc.gridx = 1;
+        dialog.add(nicknameField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        dialog.add(btnPanel, gbc);
+
+        createBtn.addActionListener(e -> {
+            String selectedType = (String) typeDropdown.getSelectedItem();
+            String nickname = nicknameField.getText().trim();
+
+            System.out.println("Create account:");
+            System.out.println("Type = " + selectedType);
+            System.out.println("Nickname = " + nickname);
+
+            dialog.dispose();
+
+            addSectionPanel(createSampleAccountPanel(
+                    nickname + "; " + selectedType.trim() + " Account",
+                    "$" + 0));
+        });
+
+        cancelBtn.addActionListener(e -> dialog.dispose());
+
+        dialog.setVisible(true);
     }
 
     private void moveToLogin() {
@@ -66,12 +129,10 @@ public class Dashboard extends JPanel {
     public void addSectionPanel(JPanel panel) {
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Height remains fixed
         int fixedHeight = PANEL_HEIGHT;
 
-        // Let BoxLayout stretch width to fit the scroll area
         Dimension maxSize = new Dimension(Integer.MAX_VALUE, fixedHeight);
-        Dimension prefSize = new Dimension(1, fixedHeight);  // width 1 = flexible
+        Dimension prefSize = new Dimension(1, fixedHeight);
 
         panel.setPreferredSize(prefSize);
         panel.setMinimumSize(prefSize);
@@ -84,8 +145,6 @@ public class Dashboard extends JPanel {
         contentPanel.repaint();
     }
 
-
-    // Example template panel (you can delete or customize)
     private JPanel createSampleAccountPanel(String name, String balance) {
         JPanel p = new JPanel(new BorderLayout());
         p.setBorder(BorderFactory.createCompoundBorder(
@@ -99,8 +158,24 @@ public class Dashboard extends JPanel {
         JLabel balanceLbl = new JLabel(balance);
         balanceLbl.setHorizontalAlignment(SwingConstants.RIGHT);
 
+        JButton depositBtn = new JButton("Deposit");
+        JButton withdrawBtn = new JButton("Withdraw");
+        JButton payBtn = new JButton("Pay");
+        JButton transferBtn = new JButton("Transfer");
+        JButton closeBtn = new JButton("Close");
+        JButton accHistoryBtn = new JButton("History");
+
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        btnPanel.add(depositBtn);
+        btnPanel.add(withdrawBtn);
+        btnPanel.add(payBtn);
+        btnPanel.add(transferBtn);
+        btnPanel.add(closeBtn);
+        btnPanel.add(accHistoryBtn);
+
         p.add(nameLbl, BorderLayout.WEST);
         p.add(balanceLbl, BorderLayout.EAST);
+        p.add(btnPanel, BorderLayout.SOUTH);
 
         return p;
     }

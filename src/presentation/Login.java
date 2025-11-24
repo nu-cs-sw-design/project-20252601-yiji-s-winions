@@ -53,7 +53,7 @@ public class Login extends JPanel {
 
         gbc.gridx = 1;
         add(pwdField, gbc);
-        JPanel btnPanel = new JPanel(new GridLayout(1, 3, 10, 0)); // 3 buttons, equal size
+        JPanel btnPanel = new JPanel(new GridLayout(1, 3, 10, 0));
         btnPanel.add(loginBtn);
         btnPanel.add(forgotPwdBtn);
         btnPanel.add(createAccBtn);
@@ -82,7 +82,7 @@ public class Login extends JPanel {
             frame.dispose();
 
             JFrame dashboardFrame = new JFrame("Dashboard");
-            dashboardFrame.add(new Dashboard());
+            dashboardFrame.add(new Dashboard("Email"));
             dashboardFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
             dashboardFrame.setSize(800, 800);
