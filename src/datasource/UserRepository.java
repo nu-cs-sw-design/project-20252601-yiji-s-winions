@@ -9,15 +9,15 @@ import java.util.Optional;
 public class UserRepository {
     private final Map<String, User> userStorage = new HashMap<>();
 
-    public Optional<User> findByUsername(String username) {
+    public Optional<User> findByEmail(String email) {
         return userStorage.values().stream()
-                .filter(u -> u.getUsername().equals(username))
+                .filter(u -> u.getEmail().equals(email))
                 .findFirst();
     }
 
     public void save(User user) {
-        userStorage.put(user.getUsername(), user);
-        System.out.println("User saved: " + user.getUsername());
+        userStorage.put(user.getEmail(), user);
+        System.out.println("User saved: " + user.getEmail());
     }
 
     public void delete(String id) {
