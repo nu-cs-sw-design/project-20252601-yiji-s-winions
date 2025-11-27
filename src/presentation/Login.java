@@ -1,5 +1,7 @@
 package presentation;
 
+import domain.AuthService;
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -93,7 +95,6 @@ public class Login extends JPanel {
             ((javax.swing.Timer) e.getSource()).stop();
         }).start();
     }
-
 
     private void handleLogin() {
         boolean authenticated = true; // TODO: check if backend found account

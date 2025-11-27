@@ -28,14 +28,14 @@ package presentation {
 package domain {
 
     class AuthService {
-        + login(username, password): User
+        + login(email, password): User
         + register(details): User
-        + forgotPassword(username): void
+        + forgotPassword(email): void
     }
 
     abstract class User {
-        + userId: String
-        + username: String
+        - userId: String
+        - email: String
         + authenticate(credentials): Boolean
         + register(details): User
         + changePassword(newPass): void
@@ -52,12 +52,12 @@ package domain {
     }
 
     class Transaction {
-        + transactionId: String
-        + type: TransactionType
-        + amount: double
-        + date: Date
-        + sourceAccountId: String
-        + targetAccountId: String
+        - transactionId: String
+        - type: TransactionType
+        - amount: double
+        - date: Date
+        - sourceAccountId: String
+        - targetAccountId: String
     }
 
     ' Account Hierarchy (Decorator Pattern for flexibility and future extensions)
@@ -67,8 +67,9 @@ package domain {
     }
 
     class BasicAccount {
-        - balance: double
+        - balance: BigDecimal
         - accountType: String
+        - accountId : String
         + deposit(amount): void
         + withdraw(amount): void
         + transfer(targetAccount, amount): void
@@ -125,7 +126,7 @@ package datasource {
     }
 
     interface UserRepository {
-        + findByUsername(username): User
+        + findByEmail(email): User
         + save(user): void
         + delete(id): void
     }
