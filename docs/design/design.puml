@@ -44,7 +44,7 @@ package domain {
 
     interface Account {
         + getAccountId(): String
-        + getBalance(): double
+        + getBalance(): BigDecimal
         + deposit(amount): void
         + withdraw(amount): void
         + transfer(targetAccount, amount): void
@@ -54,7 +54,7 @@ package domain {
     class Transaction {
         - transactionId: String
         - type: TransactionType
-        - amount: double
+        - amount: BigDecimal
         - date: Date
         - sourceAccountId: String
         - targetAccountId: String
@@ -91,16 +91,16 @@ package domain {
         + transactions: List<Transaction>
         + getFilteredHistory(startDate, endDate, type): List<Transaction>
         + calculateRunningBalance(): List<BalanceSnapshot>
-        + getSummary(): Map<String, double>
+        + getSummary(): Map<String, BigDecimal>
     }
 
     class BalanceSnapshot {
         + date: Date
-        + balance: double
+        + balance: BigDecimal
     }
 
     class Dashboard {
-        + currentBalances: Map<String, double>
+        + currentBalances: Map<String, BigDecimal>
         + recentTransactions: List<Transaction>
     }
     enum TransactionType {
