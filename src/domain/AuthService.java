@@ -12,12 +12,7 @@ public class AuthService {
         this.userRepository = repo;
     }
 
-    /**
-     * Handles the user login process.
-     * * @param email The user's submitted email.
-     * @param password The user's submitted password.
-     * @return An Optional containing the authenticated User entity, or empty if login fails.
-     */
+
     public Optional<User> login(String email, String password) {
         System.out.println("SERVICE: Attempting login for: " + email);
 
@@ -40,13 +35,7 @@ public class AuthService {
         return Optional.empty();
     }
 
-    /**
-     * Handles the user registration process.
-     * * @param email The desired new email.
-     * @param password The desired new password (will be stored as hash).
-     * @return The newly created User entity.
-     * @throws IllegalArgumentException if the email is already in use.
-     */
+
     public User register(String email, String password) throws IllegalArgumentException {
         // 1. Check if the user already exists
         if (userRepository.findByEmail(email).isPresent()) {
@@ -64,11 +53,7 @@ public class AuthService {
         return newUser;
     }
 
-    /**
-     * Handles the password change request.
-     * * @param user The authenticated User entity.
-     * @param newPassHash The new password hash to store.
-     */
+
     public void changePassword(User user, String newPassHash) {
         // Delegate password change and persistence to the User entity itself
         user.changePassword(newPassHash);
