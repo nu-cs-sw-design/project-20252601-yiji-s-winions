@@ -53,6 +53,15 @@ public class AuthService {
         return newUser;
     }
 
+    public User getUser(String email) throws IllegalArgumentException {
+        Optional<User> user = userRepository.findByEmail(email);
+        if (user.isPresent()) {
+            return user.get();
+        }
+
+        return null;
+    }
+
 
     public void changePassword(User user, String newPassHash) {
         // Delegate password change and persistence to the User entity itself

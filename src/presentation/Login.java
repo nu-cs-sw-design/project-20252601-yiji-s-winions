@@ -1,18 +1,26 @@
 package presentation;
 
-import domain.AuthService;
+import domain.*;
+import datasource.*;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Optional;
+import java.util.Random;
 
 public class Login extends JPanel {
+
+    private final AuthService authService;
     private final JTextField userField;
     private final JPasswordField pwdField;
     private final JButton loginBtn;
     private final JButton createAccBtn;
     private final JButton forgotPwdBtn;
-    private final JLabel statusLbl;
+    private final JTextField statusLbl;
     public Login() {
+        UserRepository userRepo = new UserRepository();
+        this.authService = new AuthService(userRepo);
+
         setLayout(new GridBagLayout());
 
         GridBagConstraints gbc = new GridBagConstraints();
@@ -31,7 +39,13 @@ public class Login extends JPanel {
 
         loginBtn = new JButton("Login");
 
-        statusLbl = new JLabel("");
+        statusLbl = new JTextField("");
+        statusLbl.setEditable(false);
+        statusLbl.setBorder(null);
+        statusLbl.setOpaque(false);
+//        statusLbl.setForeground(Color.RED);   // optional
+//        statusLbl.setFocusable(false);        // OPTIONAL — remove this if you *want* focus for copy
+        statusLbl.setHorizontalAlignment(SwingConstants.CENTER);
 
         forgotPwdBtn = new JButton("Forgot Password");
 
@@ -77,7 +91,7 @@ public class Login extends JPanel {
         statusLbl.setText(msg);
     }
 
-    private void moveToDashboard() {
+    private void moveToDashboard(User user) {
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
 
         new javax.swing.Timer(1000, e -> {
@@ -97,25 +111,38 @@ public class Login extends JPanel {
     }
 
     private void handleLogin() {
-        boolean authenticated = true; // TODO: check if backend found account
+        boolean authenticated = false;
+
+        String email = userField.getText().trim();
+        String password = new String(pwdField.getPassword());
+
+        Optional<User> userOpt = authService.login(email, password);
+
+        if (userOpt.isPresent()) {
+            authenticated = true;
+        }
 
         if (authenticated) {
+            User user = userOpt.get();
             updateStatus("Logging in...");
 
-            moveToDashboard();
+            moveToDashboard(user);
         } else {
             updateStatus("Account not found, please create account with these credentials");
         }
     }
 
     private void handleCreateAcc() {
-        boolean createdAccount = true; // TODO: check if backend created account
+        String email = userField.getText().trim();
+        String password = new String(pwdField.getPassword());
 
-        if (createdAccount) {
+        try {
+            User userOpt = authService.register(email, password);
+
             updateStatus("Logging in...");
 
-            moveToDashboard();
-        } else {
+            moveToDashboard(userOpt);
+        } catch (Exception ex) {
             updateStatus("Email already exists in database, try to reset password");
         }
     }
@@ -150,7 +177,11 @@ public class Login extends JPanel {
         cancelBtn.setMinimumSize(btnSize);
         cancelBtn.setMaximumSize(btnSize);
 
-        JLabel responseLbl = new JLabel("");
+        JTextField responseLbl = new JTextField("");
+        responseLbl.setEditable(false);
+        responseLbl.setBorder(null);
+        responseLbl.setOpaque(false);
+        responseLbl.setHorizontalAlignment(SwingConstants.CENTER);
 
         String longestMsg = "Please enter existing email, or create new account with your email";
         JLabel measure = new JLabel(longestMsg);
@@ -185,14 +216,23 @@ public class Login extends JPanel {
 
             System.out.println("Email submitted: " + email);
 
-            // TODO: check if backend has an account with this email
-            boolean emailExists = false;
+            User user = authService.getUser(email);
 
-            if (emailExists) {
-                // TODO: send email with backend including new password for this account
-                responseLbl.setText("Email sent with reset password!");
+            if (user != null) {
+                String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+                StringBuilder stringBuilder = new StringBuilder();
+                Random rnd = new Random();
+
+                while (stringBuilder.length() < 18) { // length of the random string.
+                    int index = (int) (rnd.nextFloat() * CHARS.length());
+                    stringBuilder.append(CHARS.charAt(index));
+                }
+                String newPassword = stringBuilder.toString();
+
+                responseLbl.setText("Your new password is " + newPassword);
+                authService.changePassword(user, newPassword);
             } else {
-                responseLbl.setText("Please enter existing email, or create new account with your email");
+                responseLbl.setText("Please enter existing email, or create new account");
             }
         });
 
