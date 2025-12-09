@@ -9,18 +9,21 @@ import java.util.stream.Collectors;
 
 public class AccountRepository {
     private static final String FILE_PATH = "accounts.csv";
+    private static final String TRANSACTIONS_FILE_PATH = "transactions.csv";
+
     // Stores all accounts, key is AccountId
     private final Map<String, Account> accountCache = new HashMap<>();
-    // Simplified transaction storage (keeping it in-memory for this repo for now)
+    // Stores transactions in memory grouped by accountId
     private final Map<String, List<Transaction>> transactionStorage = new HashMap<>();
 
     public AccountRepository() {
         loadDataFromCsv();
+        loadTransactionsFromCsv();
     }
 
-    // --- NEW METHOD TO HANDLE OBJECT CREATION ---
-    private Account createAccountInstance(String accountId, String userId, String accountType, double balance, AccountRepository repo) {
-        // This logic replaces the external AccountFactory
+    private Account createAccountInstance(String accountId, String userId,
+                                          String accountType, double balance,
+                                          AccountRepository repo) {
         switch (accountType) {
             case "Checking":
                 return new CheckingAccount(accountId, userId, balance, repo);
@@ -33,14 +36,14 @@ public class AccountRepository {
                 return new Account(accountId, userId, accountType, balance, repo);
         }
     }
-    // ---------------------------------------------
-
 
     private void loadDataFromCsv() {
         Path path = Paths.get(FILE_PATH);
         if (!Files.exists(path)) {
             try {
-                Files.writeString(path, "accountId,userId,accountType,balance\n", StandardOpenOption.CREATE_NEW);
+                Files.writeString(path,
+                        "accountId,userId,accountType,balance\n",
+                        StandardOpenOption.CREATE_NEW);
             } catch (IOException e) {
                 System.err.println("Error creating accounts.csv: " + e.getMessage());
             }
@@ -58,8 +61,8 @@ public class AccountRepository {
                     String type = parts[2];
                     double balance = Double.parseDouble(parts[3]);
 
-                    // CALL THE NEW PRIVATE CREATION METHOD
-                    Account loadedAccount = createAccountInstance(accountId, userId, type, balance, this);
+                    Account loadedAccount = createAccountInstance(
+                            accountId, userId, type, balance, this);
 
                     accountCache.put(accountId, loadedAccount);
                 }
@@ -84,7 +87,86 @@ public class AccountRepository {
         }
     }
 
-    // --- Standard Repository Methods ---
+    private void ensureTransactionsFileExists() {
+        Path path = Paths.get(TRANSACTIONS_FILE_PATH);
+        if (!Files.exists(path)) {
+            try {
+                Files.writeString(path,
+                        "transactionType,amount,sourceAccountId,targetAccountId\n",
+                        StandardOpenOption.CREATE_NEW);
+            } catch (IOException e) {
+                System.err.println("Error creating transactions.csv: " + e.getMessage());
+            }
+        }
+    }
+
+    private void loadTransactionsFromCsv() {
+        Path path = Paths.get(TRANSACTIONS_FILE_PATH);
+        if (!Files.exists(path)) {
+            ensureTransactionsFileExists();
+            return;
+        }
+
+        try (BufferedReader reader = Files.newBufferedReader(path)) {
+            reader.readLine(); // skip header
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isBlank()) continue;
+
+                // keep empty last column, then trim
+                String[] parts = line.split(",", -1);
+                if (parts.length < 4) continue;
+
+                String typeStr = parts[0].trim();
+                String amountStr = parts[1].trim();
+                String sourceId = parts[2].trim();
+                String targetRaw = parts[3].trim();
+                String targetId = targetRaw.isEmpty() ? null : targetRaw;
+
+                TransactionType type = TransactionType.valueOf(typeStr);
+                double amount = Double.parseDouble(amountStr);
+
+                Transaction txn = new Transaction(type, amount, sourceId, targetId);
+
+                transactionStorage
+                        .computeIfAbsent(sourceId, k -> new ArrayList<>())
+                        .add(txn);
+
+                // Debug:
+                System.out.println("Loaded txn: " + type + " " + amount +
+                        " for " + sourceId + " -> storage size now " +
+                        transactionStorage.get(sourceId).size());
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading transactions from CSV: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+
+    private void appendTransactionToCsv(Transaction transaction) {
+        ensureTransactionsFileExists();
+
+        String target = transaction.getTargetAccountId();
+        if (target == null) target = "";
+
+        String line = String.format(
+                "%s,%s,%s,%s%n",
+                transaction.getType().name(),
+                transaction.getAmount(),
+                transaction.getSourceAccountId(),
+                target
+        );
+
+        try {
+            Files.write(Paths.get(TRANSACTIONS_FILE_PATH),
+                    line.getBytes(),
+                    StandardOpenOption.APPEND);
+        } catch (IOException e) {
+            System.err.println("Error writing transaction to CSV: " + e.getMessage());
+        }
+    }
+
     public Optional<Account> findById(String id) {
         return Optional.ofNullable(accountCache.get(id));
     }
@@ -100,15 +182,20 @@ public class AccountRepository {
         writeDataToCsv();
     }
 
-    // findTransactionsByAccountId and saveTransaction logic omitted for brevity...
     public List<Transaction> findTransactionsByAccountId(String id) {
+        List<Transaction> txs = transactionStorage.getOrDefault(id, new ArrayList<>());
+        System.out.println("History lookup for " + id + " -> " + txs.size() + " transactions");
         return transactionStorage.getOrDefault(id, new ArrayList<>());
     }
 
     public void saveTransaction(Transaction transaction) {
-        // ... (existing in-memory logic)
-        transactionStorage.computeIfAbsent(transaction.getSourceAccountId(), k -> new ArrayList<>()).add(transaction);
+        // Store original transaction for source account
+        transactionStorage
+                .computeIfAbsent(transaction.getSourceAccountId(), k -> new ArrayList<>())
+                .add(transaction);
+        appendTransactionToCsv(transaction);
 
+        // Mirror for target account (if any), same behavior as before
         if (transaction.getTargetAccountId() != null && !transaction.getTargetAccountId().isEmpty()) {
             Transaction targetTxn = new Transaction(
                     transaction.getType(),
@@ -116,7 +203,10 @@ public class AccountRepository {
                     transaction.getTargetAccountId(),
                     transaction.getSourceAccountId()
             );
-            transactionStorage.computeIfAbsent(transaction.getTargetAccountId(), k -> new ArrayList<>()).add(targetTxn);
+            transactionStorage
+                    .computeIfAbsent(transaction.getTargetAccountId(), k -> new ArrayList<>())
+                    .add(targetTxn);
+            appendTransactionToCsv(targetTxn);
         }
     }
 }
