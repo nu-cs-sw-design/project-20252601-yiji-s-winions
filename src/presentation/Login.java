@@ -98,7 +98,7 @@ public class Login extends JPanel {
             frame.dispose();
 
             JFrame dashboardFrame = new JFrame("Dashboard");
-            dashboardFrame.add(new Dashboard("Email"));
+            dashboardFrame.add(new Dashboard(user));
             dashboardFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
             dashboardFrame.setSize(800, 800);
@@ -135,6 +135,11 @@ public class Login extends JPanel {
     private void handleCreateAcc() {
         String email = userField.getText().trim();
         String password = new String(pwdField.getPassword());
+
+        if (email.equals("") || password.equals("")) {
+            updateStatus("Please enter valid email and password");
+            return;
+        }
 
         try {
             User userOpt = authService.register(email, password);
