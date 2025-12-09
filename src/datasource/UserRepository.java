@@ -66,6 +66,22 @@ public class UserRepository {
         writeDataToCsv();
     }
 
-    // Delete method omitted for brevity, but would remove from cache and rewrite CSV
-    public void delete(String id) { /* ... */ }
+    public void delete(String id) {
+        String emailKeyToRemove = null;
+
+        for (User user : userCache.values()) {
+            if (user.getUserId().equals(id)) {
+                emailKeyToRemove = user.getEmail();
+                break;
+            }
+        }
+
+        if (emailKeyToRemove != null) {
+            userCache.remove(emailKeyToRemove);
+            writeDataToCsv(); // persist changes to users.csv
+        } else {
+            System.err.println("No user found with id: " + id);
+        }
+    }
+
 }

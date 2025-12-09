@@ -14,10 +14,15 @@ public class Dashboard extends JPanel {
     private final JPanel contentPanel;
     private final User user;
     private final AccountRepository accountRepository;
+    private final AuthService authService;
+    private final UserRepository userRepo;
 
     public Dashboard(User user) {
         this.user = user;
         this.accountRepository = new AccountRepository();
+
+        userRepo = new UserRepository();
+        this.authService = new AuthService(userRepo);
 
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -62,9 +67,8 @@ public class Dashboard extends JPanel {
         createBtn.addActionListener(e -> handleCreate());
         logoutBtn.addActionListener(e -> moveToLogin());
 
-        closeUserBtn.addActionListener(e ->
-                JOptionPane.showMessageDialog(this, "Close user account not implemented yet.",
-                        "Info", JOptionPane.INFORMATION_MESSAGE));
+        // 🔹 NEW: Close user account handler
+        closeUserBtn.addActionListener(e -> handleCloseUserAccount());
     }
 
     private void loadAccountsForUser() {
@@ -250,12 +254,7 @@ public class Dashboard extends JPanel {
         depositBtn.addActionListener(e -> handleDeposit(account, balanceLbl));
         withdrawBtn.addActionListener(e -> handleWithdraw(account, balanceLbl));
 
-        payBtn.addActionListener(e -> JOptionPane.showMessageDialog(
-                Dashboard.this,
-                "Pay functionality not implemented yet.",
-                "Info",
-                JOptionPane.INFORMATION_MESSAGE
-        ));
+        payBtn.addActionListener(e -> handlePay(account, balanceLbl));
 
         transferBtn.addActionListener(e -> JOptionPane.showMessageDialog(
                 Dashboard.this,
@@ -264,12 +263,7 @@ public class Dashboard extends JPanel {
                 JOptionPane.INFORMATION_MESSAGE
         ));
 
-        closeBtn.addActionListener(e -> JOptionPane.showMessageDialog(
-                Dashboard.this,
-                "Close account not implemented yet.",
-                "Info",
-                JOptionPane.INFORMATION_MESSAGE
-        ));
+        closeBtn.addActionListener(e -> handleCloseAccount(account));
 
         accHistoryBtn.addActionListener(e -> showHistory(account));
 
@@ -352,6 +346,138 @@ public class Dashboard extends JPanel {
         }
     }
 
+    // Pay logic (unchanged from your last version)
+    private void handlePay(Account sourceAccount, JLabel sourceBalanceLbl) {
+        JPanel panel = new JPanel(new GridLayout(2, 2, 8, 8));
+        JTextField emailField = new JTextField(20);
+        JTextField amountField = new JTextField(10);
+
+        panel.add(new JLabel("Recipient Email:"));
+        panel.add(emailField);
+        panel.add(new JLabel("Amount:"));
+        panel.add(amountField);
+
+        int result = JOptionPane.showConfirmDialog(
+                this,
+                panel,
+                "Pay Another Account",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
+        );
+
+        if (result != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        String recipientEmail = emailField.getText().trim();
+        String amountStr = amountField.getText().trim();
+
+        if (recipientEmail.isEmpty() || amountStr.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Please enter both recipient email and amount.",
+                    "Validation",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        if (recipientEmail.equalsIgnoreCase(user.getEmail())) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "You cannot use Pay to send money to yourself. Use Transfer instead.",
+                    "Invalid Recipient",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        double amount;
+        try {
+            amount = Double.parseDouble(amountStr);
+            if (amount <= 0) {
+                throw new NumberFormatException("Amount must be positive.");
+            }
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Please enter a valid positive number.",
+                    "Invalid Amount",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        try {
+            User recipient = authService.getUser(recipientEmail);
+            if (recipient == null) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "No user found with that email.",
+                        "Recipient Not Found",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            List<Account> recipientAccounts = accountRepository.findByUserId(recipient.getUserId());
+            if (recipientAccounts.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Recipient has no accounts to receive funds.",
+                        "No Recipient Account",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            Account targetAccount = recipientAccounts.stream()
+                    .filter(a -> "Checking".equalsIgnoreCase(a.getAccountType()))
+                    .findFirst()
+                    .orElse(recipientAccounts.get(0));
+
+            if (sourceAccount.getBalance() < amount) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Insufficient funds to complete this payment.",
+                        "Insufficient Funds",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            sourceAccount.transfer(targetAccount, amount);
+
+            accountRepository.save(sourceAccount);
+            accountRepository.save(targetAccount);
+
+            updateBalanceLabel(sourceBalanceLbl, sourceAccount);
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    String.format("Successfully paid $%.2f to %s.", amount, recipientEmail),
+                    "Payment Successful",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    ex.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(
+                    this,
+                    "An unexpected error occurred while processing the payment.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
     private void showHistory(Account account) {
         List<Transaction> transactions = account.viewTransactions();
 
@@ -388,4 +514,88 @@ public class Dashboard extends JPanel {
                 JOptionPane.INFORMATION_MESSAGE
         );
     }
+
+    // 🔹 NEW: Close user account logic
+    private void handleCloseUserAccount() {
+        int choice = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to close your user account?\n" +
+                        "This will delete all your accounts and transaction history.\n" +
+                        "This action cannot be undone.",
+                "Confirm Close User Account",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        if (choice != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            // 1) Delete all accounts + transactions for this user via AccountRepository
+            accountRepository.deleteAccountsByUserId(user.getUserId());
+
+            // 2) Delete the user from users.csv
+            userRepo.delete(user.getUserId());
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Your user account and all associated data have been deleted.",
+                    "Account Closed",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
+            // 3) Return to login screen
+            moveToLogin();
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(
+                    this,
+                    "An error occurred while closing your account.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
+    private void handleCloseAccount(Account account) {
+        int choice = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to close this bank account?\n" +
+                        "This will delete the account and all its transactions.\n" +
+                        "This action cannot be undone.",
+                "Confirm Close Account",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        if (choice != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            // Delete this one bank account from all records (accounts.csv + transactions.csv)
+            accountRepository.deleteAccountById(account.getAccountId());
+
+            // Refresh the dashboard view
+            loadAccountsForUser();
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "The bank account has been closed and removed from all records.",
+                    "Account Closed",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(
+                    this,
+                    "An error occurred while closing the account.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
 }

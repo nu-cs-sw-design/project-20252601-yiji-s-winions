@@ -209,4 +209,101 @@ public class AccountRepository {
             appendTransactionToCsv(targetTxn);
         }
     }
+
+    // Delete a single account and all of its transactions
+    public void deleteAccountById(String accountId) {
+        if (accountId == null) return;
+
+        // Remove from in-memory cache
+        Account removed = accountCache.remove(accountId);
+
+        // Persist updated accounts.csv
+        if (removed != null) {
+            writeDataToCsv();
+        }
+
+        // Remove all transactions where this account is source or target
+        deleteTransactionsForAccountIds(Collections.singleton(accountId));
+    }
+
+    // Delete all accounts for a given userId and all related transactions
+    public void deleteAccountsByUserId(String userId) {
+        if (userId == null) return;
+
+        // Find all accounts for this user
+        List<Account> accountsForUser = findByUserId(userId);
+        if (accountsForUser.isEmpty()) {
+            return;
+        }
+
+        // Collect their account IDs
+        Set<String> accountIdsToDelete = accountsForUser.stream()
+                .map(Account::getAccountId)
+                .collect(Collectors.toSet());
+
+        // Remove from in-memory cache
+        for (String accountId : accountIdsToDelete) {
+            accountCache.remove(accountId);
+        }
+
+        // Persist updated accounts.csv
+        writeDataToCsv();
+
+        // Remove all related transactions
+        deleteTransactionsForAccountIds(accountIdsToDelete);
+    }
+
+    // Helper: remove all transactions involving any of the given account IDs
+    private void deleteTransactionsForAccountIds(Set<String> accountIds) {
+        if (accountIds == null || accountIds.isEmpty()) return;
+
+        Path path = Paths.get(TRANSACTIONS_FILE_PATH);
+        if (!Files.exists(path)) {
+            // Nothing to clean up
+            return;
+        }
+
+        try (BufferedReader reader = Files.newBufferedReader(path)) {
+            String header = reader.readLine(); // read header
+            if (header == null) {
+                header = "transactionType,amount,sourceAccountId,targetAccountId";
+            }
+
+            List<String> keptLines = new ArrayList<>();
+            keptLines.add(header);
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isBlank()) continue;
+
+                String[] parts = line.split(",", -1);
+                if (parts.length < 4) continue;
+
+                String sourceId = parts[2].trim();
+                String targetRaw = parts[3].trim();
+                String targetId = targetRaw.isEmpty() ? null : targetRaw;
+
+                // Skip any transaction where source or target is in the delete set
+                if (accountIds.contains(sourceId) ||
+                        (targetId != null && accountIds.contains(targetId))) {
+                    continue;
+                }
+
+                keptLines.add(line);
+            }
+
+            // Rewrite transactions.csv with remaining transactions
+            Files.write(path, keptLines,
+                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.CREATE);
+
+        } catch (IOException e) {
+            System.err.println("Error rewriting transactions.csv: " + e.getMessage());
+        }
+
+        // Rebuild in-memory transactionStorage from the cleaned CSV
+        transactionStorage.clear();
+        loadTransactionsFromCsv();
+    }
+
 }

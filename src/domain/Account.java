@@ -6,12 +6,11 @@ import java.util.UUID;
 
 public class Account {
     private final String accountId;
-    private final String userId; // <-- NEW: Field added to link to User
+    private final String userId;
     protected double balance;
     protected String accountType = "Basic";
     protected final AccountRepository accountRepository;
 
-    // Constructor 1: For NEW account creation
     public Account(String userId, double initialBalance, AccountRepository repo) {
         this.accountId = UUID.randomUUID().toString();
         this.userId = userId;
@@ -19,7 +18,6 @@ public class Account {
         this.accountRepository = repo;
     }
 
-    // Constructor 2: For LOADING from CSV
     public Account(String accountId, String userId, String accountType, double initialBalance, AccountRepository repo) {
         this.accountId = accountId;
         this.userId = userId;
@@ -30,7 +28,7 @@ public class Account {
 
     // Getters
     public String getAccountId() { return accountId; }
-    public String getUserId() { return userId; } // <-- NEW: Required by AccountRepository.findByUserId()
+    public String getUserId() { return userId; }
     public double getBalance() { return balance; }
     public String getAccountType() { return accountType; }
 
@@ -58,6 +56,23 @@ public class Account {
         Transaction tx = new Transaction(TransactionType.WITHDRAWAL, amount, this.accountId, null);
         accountRepository.saveTransaction(tx);
         accountRepository.save(this); // Saves to CSV
+    }
+
+    public void pay(Account targetAccount, double amount) {
+        if (amount <= 0) throw new IllegalArgumentException("Transfer amount must be positive.");
+
+        this.withdraw(amount);
+        targetAccount.deposit(amount);
+
+        // Save transfer transaction
+        Transaction tx = new Transaction(
+                TransactionType.EXTERNAL_TRANSFER,
+                amount,
+                this.accountId,
+                targetAccount.getAccountId()
+        );
+        accountRepository.saveTransaction(tx);
+        accountRepository.save(this);
     }
 
     public void transfer(Account targetAccount, double amount) {
