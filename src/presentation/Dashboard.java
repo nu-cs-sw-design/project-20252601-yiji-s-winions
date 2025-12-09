@@ -5,7 +5,9 @@ import datasource.*;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Dashboard extends JPanel {
 
@@ -256,12 +258,7 @@ public class Dashboard extends JPanel {
 
         payBtn.addActionListener(e -> handlePay(account, balanceLbl));
 
-        transferBtn.addActionListener(e -> JOptionPane.showMessageDialog(
-                Dashboard.this,
-                "Transfer functionality not implemented yet.",
-                "Info",
-                JOptionPane.INFORMATION_MESSAGE
-        ));
+        transferBtn.addActionListener(e -> handleTransfer(account, balanceLbl));
 
         closeBtn.addActionListener(e -> handleCloseAccount(account));
 
@@ -597,5 +594,124 @@ public class Dashboard extends JPanel {
             );
         }
     }
+
+    // 🔹 NEW: Transfer implementation
+    private void handleTransfer(Account sourceAccount, JLabel sourceBalanceLbl) {
+
+        // Get all accounts belonging to the user EXCEPT the source account
+        List<Account> userAccounts = accountRepository.findByUserId(user.getUserId());
+        List<Account> targetOptions = userAccounts.stream()
+                .filter(a -> !a.getAccountId().equals(sourceAccount.getAccountId()))
+                .collect(java.util.stream.Collectors.toList());
+
+        if (targetOptions.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "You have no other accounts to transfer to.",
+                    "No Accounts Available",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        // Build dropdown list with readable labels
+        JComboBox<String> accountDropdown = new JComboBox<>();
+        Map<String, Account> mapDisplayToAccount = new HashMap<>();
+
+        for (Account acc : targetOptions) {
+            String label = String.format(
+                    "%s (%s, %s)",
+                    acc.getAccountType(),
+                    acc.getUserId(),
+                    acc.getAccountId().substring(0, 8)
+            );
+            accountDropdown.addItem(label);
+            mapDisplayToAccount.put(label, acc);
+        }
+
+        JTextField amountField = new JTextField(10);
+
+        JPanel panel = new JPanel(new GridLayout(2, 2, 8, 8));
+        panel.add(new JLabel("Transfer To Account:"));
+        panel.add(accountDropdown);
+        panel.add(new JLabel("Amount:"));
+        panel.add(amountField);
+
+        int result = JOptionPane.showConfirmDialog(
+                this,
+                panel,
+                "Transfer Funds",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
+        );
+
+        if (result != JOptionPane.OK_OPTION) return;
+
+        // Read amount
+        String amountStr = amountField.getText().trim();
+        double amount;
+
+        try {
+            amount = Double.parseDouble(amountStr);
+            if (amount <= 0)
+                throw new NumberFormatException("Amount must be positive.");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Please enter a valid positive amount.",
+                    "Invalid Amount",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        // Check funds
+        if (sourceAccount.getBalance() < amount) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Insufficient funds in the source account.",
+                    "Insufficient Funds",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        // Get selected target account
+        String selectedLabel = (String) accountDropdown.getSelectedItem();
+        Account targetAccount = mapDisplayToAccount.get(selectedLabel);
+
+        try {
+            // Perform transfer
+            sourceAccount.transfer(targetAccount, amount);
+
+            // Save updated accounts
+            accountRepository.save(sourceAccount);
+            accountRepository.save(targetAccount);
+
+            updateBalanceLabel(sourceBalanceLbl, sourceAccount);
+
+            loadAccountsForUser();
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    String.format("Transferred $%.2f to account ending in %s.",
+                            amount, targetAccount.getAccountId().substring(0, 8)),
+                    "Transfer Successful",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Error while processing transfer:\n" + ex.getMessage(),
+                    "Transfer Failed",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+
+
+    }
+
 
 }
