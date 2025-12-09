@@ -219,7 +219,7 @@ public class Dashboard extends JPanel {
 
         String displayName;
         if (nicknameOverride != null && !nicknameOverride.isEmpty()) {
-            displayName = String.format("%s (%s Account • %s)", nicknameOverride,
+            displayName = String.format("%s (%s Account, %s)", nicknameOverride,
                     account.getAccountType(), shortId);
         } else {
             displayName = String.format("%s Account • %s", account.getAccountType(), shortId);
@@ -246,8 +246,6 @@ public class Dashboard extends JPanel {
         btnPanel.add(transferBtn);
         btnPanel.add(closeBtn);
         btnPanel.add(accHistoryBtn);
-
-        // --- Button actions ---
 
         depositBtn.addActionListener(e -> handleDeposit(account, balanceLbl));
         withdrawBtn.addActionListener(e -> handleWithdraw(account, balanceLbl));
